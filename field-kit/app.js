@@ -1,9 +1,15 @@
 'use strict';
 const D=globalThis.PilotDomain, root=document.querySelector('#app');
 const kinds={
- slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'BOOKINGS',head:'Put cancellations back to work.',desc:'Publish an opening. The first customer who meets your requirements can claim it.',audience:'For grooming shops',create:'Post an opening'},
- borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'LOANER GEAR',head:'Know where the gear went.',desc:'Label each item with a QR code. Members check gear out, and you track due dates and returns.',audience:'For clubs and gear rooms',create:'Start a gear board'},
- rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'GAME DAY',head:'One link for the weather call.',desc:'Post a delay, new venue or cancellation. Everyone checks the same page for the latest call.',audience:'For rec leagues and coaches',create:'Create a game page'},
+ slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'APPOINTMENTS',head:'Turn a cancellation into a booking.',desc:'Hair, nails, barbers, pet grooming, or any appointment business. Post the opening and share one claim link.',audience:'For appointment businesses',create:'Post an opening',vision:'A shared waitlist, alerts for matching openings, and calendar sync across a team.'},
+ borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'ASSET LENDING',head:'Know who has what.',desc:'For clubs, schools, makerspaces, or teams with equipment. Give every loaner its own checkout QR.',audience:'For teams that lend equipment',create:'Start a gear board',vision:'Reservations, overdue reminders, and inventory across multiple locations.'},
+ rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'LIVE UPDATES',head:'One link when plans change.',desc:'Keep leagues, camps, classes, and organizers on the same page when the time, venue, or plan changes.',audience:'For groups that meet in person',create:'Create an event page',vision:'A schedule of events, opt-in alerts for changes, and a status page for each venue.'},
+};
+const slotSamples={
+ hair:{title:'Cut & blow-dry',category:'Hair salon',where:'Studio Birch, 12 King St.',with:'Maya',duration:45,price:'65',blurb:'A 45-minute opening with Maya.'},
+ nails:{title:'Gel manicure',category:'Nail salon',where:'Peony Nail Studio, 18 Main St.',with:'Sam',duration:50,price:'55',rules:'Please let the studio know if you need a removal.',blurb:'A nail appointment with a short booking note.'},
+ barber:{title:'Haircut & beard trim',category:'Barber',where:'Parkside Barbers, 35 Market St.',duration:35,price:'42',blurb:'A same-day-style opening with an upfront price.'},
+ grooming:{title:'Bath & tidy for a small dog',category:'Pet grooming',where:'Juniper Grooming, 42 King St.',duration:60,price:'55',rules:'Dogs under 25 lb. Proof of rabies vaccination required at check-in.',blurb:'A slot with specific requirements.'},
 };
 const shared=document.querySelector('meta[name=field-kit-mode]').content==='shared';
 let current, organizer, receipt, selected, readSerial=0, labelCount=0;
@@ -45,12 +51,12 @@ function form(title,fields,action,label){
 }
 function readStore(){try{return JSON.parse(localStorage.getItem(STORE)||'{}');}catch{return {};}}
 function writeStore(data){try{localStorage.setItem(STORE,JSON.stringify(data));}catch{throw Error('This browser cannot save the demo. Enable website storage and try again.');}}
-function demo(kind){
- const data=readStore();if(!kinds[kind])return;
- const keys={slot:'slot-demo',rain:'rain-demo',borrow:'borrow-demo'}, key=keys[kind], owner=mkKey();
+function demo(kind, sample='grooming'){
+ const data=readStore();if(!Object.hasOwn(kinds,kind))return;
+ const key=kind==='slot'?'slot-'+sample+'-demo':kind+'-demo', owner=mkKey();
  if(!data[key]){
   const details={
-   slot:{title:'Bath & tidy for a small dog',when:sampleFuture(42),where:'Juniper Grooming, 42 King St.',rules:'Dogs under 25 lb. Proof of rabies vaccination required at check-in.',price:'55'},
+   slot:{...slotSamples[sample],when:sampleFuture(sample==='barber'?5:42)},
    borrow:{title:'Parkside Rec gear room',days:'5'},
    rain:{title:'Parkside U13 vs. Hillcrest',when:sampleFuture(48),where:'West Diamond, Parkside',note:'Warmups start 30 minutes before first pitch.'}
   }[kind], t=now(), b=D.create({kind,...details},t,()=>key);
@@ -59,6 +65,14 @@ function demo(kind){
   data[key]={b,owner};writeStore(data);
  }
  return {id:key,owner:data[key].owner};
+}
+function sampleList(){
+ const choices=el('div',undefined,'sample-grid');
+ for(const [slug,sample] of Object.entries(slotSamples)){
+  const card=add(el('article',undefined,'panel'),el('p',sample.category,'eyebrow'),el('h2',sample.title),el('p',sample.blurb),a('Try '+sample.category.toLowerCase(),'#demo=slot&sample='+slug,'button quiet'));
+  choices.append(card);
+ }
+ root.replaceChildren(heading(kinds.slot,'Try an appointment','Choose a sample to test both the business and customer views.'),choices);
 }
 async function call(method,board,input,secret,rec,attempt){
  if(shared){
@@ -82,29 +96,31 @@ async function call(method,board,input,secret,rec,attempt){
 }
 function home(){
  const hero=el('section',undefined,'hero');
- const copy=add(el('div'),el('p','OPEN TOOLS STUDIO / THREE PILOTS','eyebrow'),el('h1','Keep the day moving.'),el('p','Fill one opening. Get the gear back. Tell everyone where to play.','intro'));
- const side=add(el('div',undefined,'hero-mark'),el('span','✳'),el('div','BOOK / BORROW / PLAY'));
+ const copy=add(el('div'),el('p','OPEN TOOLS STUDIO / THREE PILOTS','eyebrow'),el('h1','Keep the day moving.'),el('p','Fill a cancelled appointment. Get the gear back. Keep everyone up to date.','intro'));
+ const side=add(el('div',undefined,'hero-mark'),el('span','✳'),el('div','BOOK / BORROW / UPDATE'));
  hero.append(copy,side);
  const cards=el('section',undefined,'cards');
  for(const [key,k] of Object.entries(kinds)){
   const c=el('article',undefined,'product '+k.color), top=add(el('div',undefined,'product-top'),el('span',k.n+' / '+k.tag),el('i',k.glyph));
   const actions=add(el('div',undefined,'actions'),a(k.create,'#new='+key,'button'));
-  if(!shared)actions.append(a('Try sample','#demo='+key,'subtle'));
-  cards.append(add(c,top,el('p',k.audience,'eyebrow'),el('h2',k.name),el('p',k.head,'card-head'),el('p',k.desc,'muted'),actions));
+  if(!shared)actions.append(a('Try sample',key==='slot'?'#samples=slot':'#demo='+key,'subtle'));
+  const art=el('img',undefined,'product-art');art.src=key+'.svg';art.alt='';art.width=480;art.height=256;
+  const next=add(el('details',undefined,'vision'),el('summary','Where it could go'),el('p',k.vision));
+  cards.append(add(c,top,art,el('p',k.audience,'eyebrow'),el('h2',k.name),el('p',k.head,'card-head'),el('p',k.desc,'muted'),actions,next));
  }
  const expl=el('p',shared?'Publish a board, then share its public link. Keep the manager link for yourself.':'This preview saves changes in this browser. Use sample details to test the full flow.','demo-note');
  root.replaceChildren(hero,cards,expl);
 }
 function newBoard(k){
  const p=kinds[k];
- const f=[input(k==='borrow'?'Gear board name':k==='rain'?'Game or event name':'Service or opening','title',{maxlength:120})];
+ const f=[input(k==='borrow'?'Gear board name':k==='rain'?'Event name':'Service or opening','title',{maxlength:120,...(k==='slot'?{placeholder:'e.g. Gel manicure'}:{})})];
  if(k==='borrow')f.push(input('Default loan length (days)','days',{type:'number',min:1,max:30,value:5}));
- else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Shop and address':'Original location','where',{maxlength:120}));
- if(k==='slot')f.push(input('Who can book?','rules',{maxlength:240,placeholder:'e.g. Small dogs with current vaccinations'}),input('Price (CAD)','price',{mode:'decimal',placeholder:'55.00'}));
+ else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Business and location':'Original location','where',{maxlength:120}));
+ if(k==='slot')f.push(input('Service type (optional)','category',{maxlength:48,placeholder:'e.g. Hair salon, nails, barber',required:false}),input('Provider name (optional)','with',{maxlength:80,placeholder:'e.g. Maya',required:false}),input('Duration in minutes (optional)','duration',{type:'number',min:5,max:720,placeholder:'45',required:false}),input('Booking requirements (optional)','rules',{maxlength:240,placeholder:'e.g. Existing clients only',required:false}),input('Price in CAD (optional)','price',{mode:'decimal',placeholder:'55.00',required:false}));
  if(k==='rain')f.push(input('First update (optional)','note',{maxlength:240,required:false}));
  root.replaceChildren(heading(p,p.create,'Once published, you’ll get a public link and a private manager link.'),form('',f,async v=>{
   const r=await call('POST',null,{...v,kind:k});location.hash=boardURL(r.board.id,r.secret);
- },'Publish '+(k==='slot'?'opening':k==='rain'?'game page':'gear board')));
+ },'Publish '+(k==='slot'?'opening':k==='rain'?'event page':'gear board')));
 }
 function heading(p,title,description){
  return add(el('section',undefined,'board-top '+p.color),a('‹ All tools','./','back'),el('p',p.name.toUpperCase()+' / '+p.tag,'eyebrow'),el('h1',title),...(description?[el('p',description,'intro')]:[]));
@@ -115,7 +131,7 @@ function panel(title,...elements){return add(el('section',undefined,'panel'),...
 function refresh(){return navigate(true)}
 function viewSlot(b,page,edit){
  const status={available:'Open to book',claimed:'Claimed',closed:'Closed',expired:'Expired'}[b.state];
- const details=add(el('dl'),row('When',date(b.when)),row('Where',b.where),row('Price',cad(b.price)),row('Booking requirements',b.rules));
+ const details=add(el('dl'),row('When',date(b.when)),row('Where',b.where),...(b.category?[row('Service type',b.category)]:[]),...(b.with?[row('With',b.with)]:[]),...(b.duration?[row('Duration',b.duration+' minutes')]:[]),row('Price',Number.isInteger(b.price)?cad(b.price):'Ask the business'),...(b.rules?[row('Booking requirements',b.rules)]:[]));
  page.append(panel('The opening',badge(status,b.state),details));
  if(b.owner){
   const actions=el('div',undefined,'actions');
@@ -125,10 +141,10 @@ function viewSlot(b,page,edit){
   if(b.claim)page.append(panel('Customer claim',add(el('dl'),row('Name',b.claim.name),row('Email',b.claim.email),row('Claimed',date(b.claim.at))),actions));
   else if(actions.children.length)page.append(panel('Manage opening',actions));
  }else if(b.receipt){
-  page.append(panel('You claimed this spot',el('p','Your appointment is at '+date(b.when)+'. Payment is handled by the shop.'),copyControl('Copy private confirmation',link(boardURL(b.id,null,null,receipt)))));
+  page.append(panel('You claimed this spot',el('p','Your appointment is at '+date(b.when)+'. Payment is handled by the business.'),copyControl('Copy private confirmation',link(boardURL(b.id,null,null,receipt)))));
  }else if(b.state==='available'){
-  page.append(form('Claim this opening',[input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),check('I meet the booking requirements.')],claim,'Claim appointment'));
- }else page.append(panel('This opening is no longer available',el('p','Check with the shop for its next opening.')));
+  page.append(form('Claim this opening',[input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),check(b.rules?'I meet the booking requirements.':'I can make this appointment.')],claim,'Claim appointment'));
+ }else page.append(panel('This opening is no longer available',el('p','Check with the business for its next opening.')));
 }
 function actionButton(label,action,edit,extras={},confirmText){
  const error=el('span',undefined,'notice');error.role='alert';
@@ -177,23 +193,42 @@ function viewBorrow(b,page,edit){
   return;
  }
  const list=panel('Gear list',el('p',b.items.length+' items · '+out+' on loan','muted'));
+ const search=input('Find an item','inventory-query',{type:'search',required:false,placeholder:'Search gear by name'});
+ const filter=input('Availability','inventory-status',{options:[['all','All items'],['in','Available'],['out','On loan'],['overdue','Overdue']],required:false});
+ const count=el('p',undefined,'small');count.role='status';
+ const entries=[];
  if(!b.items.length)list.append(el('p','No gear has been added yet.'));
+ if(b.items.length)list.append(add(el('div',undefined,'inventory-control'),search,filter),count);
+ function refine(){
+  const q=search.querySelector('input').value.trim().toLowerCase(), f=filter.querySelector('select').value;
+  let matches=0;
+  for(const [i,v] of entries){
+   const state=i.due&&i.due<now()?'overdue':i.state;
+   const pass=i.title.toLowerCase().includes(q)&&(f==='all'||f===i.state||f===state);
+   v.hidden=!pass;if(pass)matches++;
+  }
+  count.textContent=matches+' of '+entries.length+' items';
+ }
+ search.addEventListener('input',refine);filter.addEventListener('change',refine);
+
  for(const i of b.items){
   const v=add(el('article',undefined,'item'),add(el('div',undefined,'item-title'),el('h3',i.title),badge(i.state==='in'?'Available':i.due<now()?'Overdue':'On loan',i.state==='in'?'available':'closed')));
   if(i.due)v.append(el('p',(i.name?i.name+' · ':'')+'Due '+date(i.due),'muted'));
   const href=boardURL(b.id,null,i.id), publicLink=link(href);
   const row=add(el('div',undefined,'actions'),a(b.owner?'Open item page':'View item',href,'subtle'));
   if(b.owner)row.append(copyControl('Copy item link',publicLink),actionButton(i.state==='out'?'Mark returned':'Remove item',i.state==='out'?'return':'remove',edit,{item:i.id},i.state==='in'?'Remove this item?':undefined));
-  v.append(row);if(b.owner)v.append(qrControl(publicLink,i.title));list.append(v);
+  v.append(row);if(b.owner)v.append(qrControl(publicLink,i.title));list.append(v);entries.push([i,v]);
  }
+ if(entries.length)refine();
  page.append(list);
 }
 function viewRain(b,page,edit){
  const latest=b.updates[0];
- page.append(panel('Current game status',badge(D.stages[latest.status],latest.status),add(el('dl'),row(latest.status==='cancelled'?'Originally scheduled':'Start',date(latest.when||b.when)),row(latest.status==='cancelled'?'Original location':'Location',latest.where||b.where),...(latest.note?[row('Update',latest.note)]:[]),row('Posted',date(latest.at)))));
+ if(b.announcement)page.append(panel('Pinned announcement',el('p',b.announcement.note),el('p','Posted '+date(b.announcement.at),'muted'),...(b.owner?[actionButton('Remove announcement','clear-announcement',edit)]:[])));
+ page.append(panel('Current event status',badge(D.stages[latest.status],latest.status),add(el('dl'),row(latest.status==='cancelled'?'Originally scheduled':'Start',date(latest.when||b.when)),row(latest.status==='cancelled'?'Original location':'Location',latest.where||b.where),...(latest.note?[row('Update',latest.note)]:[]),row('Posted',date(latest.at)))));
  if(b.owner){
   const status=input('Status','status',{options:Object.entries(D.stages),value:latest.status});
-  const where=input('New location','where',{maxlength:120,value:latest.where||'',required:false}),when=input('New start time','when',{type:'datetime-local',required:false}), note=input('Message to players','note',{maxlength:240,required:false,placeholder:'e.g. Use the east entrance'});
+  const where=input('New location','where',{maxlength:120,value:latest.where||'',required:false}),when=input('New start time','when',{type:'datetime-local',required:false}), note=input('Message to attendees','note',{maxlength:240,required:false,placeholder:'e.g. Use the east entrance'});
   const sync=()=>{
    const value=status.querySelector('select').value;
    const w=where.querySelector('input'),t=when.querySelector('input'),n=note.querySelector('input');
@@ -203,6 +238,7 @@ function viewRain(b,page,edit){
   };
   status.addEventListener('change',sync);sync();
   page.append(form('Post a change',[status,where,when,note],v=>edit({action:'update',...v}),'Publish update'));
+  page.append(form('Pin an announcement',[input('Announcement','note',{maxlength:240,placeholder:'e.g. Bring indoor shoes',value:b.announcement?.note||''})],v=>edit({action:'announce',...v}),'Pin message'));
  }
  if(b.updates.length>1){
   const history=el('ol',undefined,'history');
@@ -228,7 +264,7 @@ function board(b){
   page.append(panel('Share this board',el('p',shared?'Share the public link. Save the private manager link to make changes later.':'This is a browser preview. Other people cannot open your saved boards.'),add(el('div',undefined,'actions'),a('Open public page',publicLink,'subtle'),copyControl('Copy public link',publicLink),copyControl('Copy private manager link',location.href)),qrControl(publicLink,b.title)));
  }else{
   const identity=el('div',undefined,'public-bar');
-  identity.append(el('span',b.kind==='rain'?'Check here for the latest game status.':'PUBLIC PAGE','eyebrow'),btn('Refresh',refresh,'button quiet'));
+  identity.append(el('span',b.kind==='rain'?'Check here for the latest event status.':'PUBLIC PAGE','eyebrow'),btn('Refresh',refresh,'button quiet'));
   if(!shared){const sample=readStore()[b.id];if(sample)identity.append(a('Manager view',boardURL(b.id,sample.owner),'subtle'));}
   page.append(identity);
  }
@@ -248,8 +284,10 @@ async function navigate(quiet=false,passive=false){
    if(request===readSerial&&(!passive||b.updated!==current?.updated)){board(b);if(!quiet)window.scrollTo(0,0);}
    return;
   }
+  if(!shared&&qp.get('samples')==='slot'){sampleList();if(!quiet)window.scrollTo(0,0);return;}
   if(!shared&&Object.hasOwn(kinds,qp.get('demo'))){
-   const d=demo(qp.get('demo'));location.replace(boardURL(d.id,d.owner));return;
+   const sample=Object.hasOwn(slotSamples,qp.get('sample'))?qp.get('sample'):'grooming';
+   const d=demo(qp.get('demo'),sample);location.replace(boardURL(d.id,d.owner));return;
   }
   if(Object.hasOwn(kinds,qp.get('new')))newBoard(qp.get('new'));else home();
   if(!quiet)window.scrollTo(0,0);
