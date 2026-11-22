@@ -12,7 +12,9 @@ const slotSamples={
  grooming:{title:'Bath & tidy for a small dog',category:'Pet grooming',where:'Juniper Grooming, 42 King St.',duration:60,price:'55',rules:'Dogs under 25 lb. Proof of rabies vaccination required at check-in.',blurb:'A slot with specific requirements.'},
 };
 const shared=document.querySelector('meta[name=field-kit-mode]').content==='shared';
-let current, organizer, receipt, selected, readSerial=0, labelCount=0;
+const invite=document.querySelector('meta[name=field-kit-access]').content==='invite';
+const inviteField=()=>input('Pilot access code','accessCode',{type:'password',maxlength:180,autocomplete:'off'});
+let current, organizer, receipt, selected, listing, readSerial=0, labelCount=0;
 const STORE='fieldkit-demo-v1', now=()=>new Date().toISOString();
 const sampleFuture=(h)=>new Date(Date.now()+h*3600000).toISOString();
 const random=(len)=>Array.from(crypto.getRandomValues(new Uint8Array(len)),v=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'[v%64]).join('');
@@ -22,13 +24,14 @@ function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefine
 function add(parent,...nodes){parent.append(...nodes);return parent;}
 function a(text,href,cls){const e=el('a',text,cls);e.href=href;return e;}
 function btn(text,onClick,cls='button'){const e=el('button',text,cls);e.type='button';e.addEventListener('click',onClick);return e;}
-const boardURL=(id,owner,item,rec)=>'#'+new URLSearchParams({board:id,...(owner?{manage:owner}:{}),...(item?{item}:{}),...(rec?{receipt:rec}:{})});
+const boardURL=(id,owner,item,rec,listing)=>'#'+new URLSearchParams({board:id,...(owner?{manage:owner}:{}),...(item?{item}:{}),...(rec?{receipt:rec}:{}),...(listing?{listing}:{} )});
 const link=(fragment)=>new URL(fragment,location.href).href;
 const date=(str)=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(str));
 const cad=(value)=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(value/100)+' CAD';
 function input(label,name,opts={}){
  const w=el('label',undefined,'input'), caption=el('span',label);caption.id='field-label-'+(++labelCount);w.append(caption);let e;
  if(opts.options){e=el('select');for(const [value,text] of opts.options){const op=el('option',text);op.value=value;e.append(op);}}
+ else if(opts.multiline){e=el('textarea');e.rows=opts.multiline;}
  else {e=el('input');e.type=opts.type||'text';}
  e.name=name;e.setAttribute('aria-labelledby',caption.id);
  if(opts.placeholder)e.placeholder=opts.placeholder;if(opts.value!==undefined)e.value=opts.value;
@@ -74,25 +77,26 @@ function sampleList(){
  }
  root.replaceChildren(heading(kinds.slot,'Try an appointment','Choose a sample to test both the business and customer views.'),choices);
 }
-async function call(method,board,input,secret,rec,attempt){
+async function call(method,board,input,secret,rec,attempt,listing){
  if(shared){
   const path=board?'api/boards/'+encodeURIComponent(board)+(attempt?'/act':''):'api/boards';
   const headers={};if(input)headers['Content-Type']='application/json';
   if(secret)headers.Authorization='Bearer '+secret;
   if(rec)headers['X-Receipt']=rec;
-  const r=await fetch(new URL(path,location.href),{method,headers,body:input?JSON.stringify(input):undefined,cache:'no-store'});
+  const endpoint=new URL(path,location.href);if(listing)endpoint.searchParams.set('listing',listing);
+  const r=await fetch(endpoint,{method,headers,body:input?JSON.stringify(input):undefined,cache:'no-store'});
   if(!r.headers.get('content-type')?.includes('application/json'))throw Error('The server did not respond. Try again.');
   const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error),{status:r.status});return data;
  }
  const data=readStore(), row=data[board], t=now();
- if(method==='POST'&&!board){const b=D.create(input,t,id),owner=mkKey();data[b.id]={b,owner};writeStore(data);return {board:D.view(b,t,true),secret:owner};}
+ if(method==='POST'&&!board){const b=D.create(input,t,id),owner=mkKey();data[b.id]={b,owner};writeStore(data);return {board:D.present(b,t,true),secret:owner};}
  if(!row){throw Error('This board isn’t in this browser. Demo links open only where they were created.');}
  if(secret&&secret!==row.owner)D.fail('That private manager link does not match this board.',403);
- if(method==='GET')return {board:D.view(row.b,t,!!secret,rec)};
- if(method==='POST'){const receipt=D.act(row.b,input,t,id,mkKey);writeStore(data);return {board:D.view(row.b,t,false,receipt),receipt};}
+ if(method==='GET')return {board:D.present(row.b,t,!!secret,rec,listing)};
+ if(method==='POST'){const receipt=D.action(row.b,input,t,id,mkKey);writeStore(data);return {board:D.present(row.b,t,false,receipt,input.listing),receipt};}
  if(!secret)D.fail('Use your private manager link.',403);
- if(input.action==='delete'){delete data[board];writeStore(data);return {board:null};}
- D.edit(row.b,input,t,id);writeStore(data);return {board:D.view(row.b,t,true)};
+ if(input.action==='delete'&&!input.listing){delete data[board];writeStore(data);return {board:null};}
+ D.modify(row.b,input,t,id);writeStore(data);return {board:D.present(row.b,t,true,undefined,input.action==='delete-listing'?undefined:input.listing)};
 }
 function home(){
  const hero=el('section',undefined,'hero');
@@ -102,7 +106,7 @@ function home(){
  const cards=el('section',undefined,'cards');
  for(const [key,k] of Object.entries(kinds)){
   const c=el('article',undefined,'product '+k.color), top=add(el('div',undefined,'product-top'),el('span',k.n+' / '+k.tag),el('i',k.glyph));
-  const actions=add(el('div',undefined,'actions'),a(k.create,'#new='+key,'button'));
+  const actions=add(el('div',undefined,'actions'),a(key==='slot'?'Start a booking page':key==='rain'?'Start a program page':k.create,key==='borrow'?'#new=borrow':'#workspace='+key,'button'));
   if(!shared)actions.append(a('Try sample',key==='slot'?'#samples=slot':'#demo='+key,'subtle'));
   const art=el('img',undefined,'product-art');art.src=key+'.svg';art.alt='';art.width=480;art.height=256;
   const next=add(el('details',undefined,'vision'),el('summary','Where it could go'),el('p',k.vision));
@@ -111,16 +115,89 @@ function home(){
  const expl=el('p',shared?'Publish a board, then share its public link. Keep the manager link for yourself.':'This preview saves changes in this browser. Use sample details to test the full flow.','demo-note');
  root.replaceChildren(hero,cards,expl);
 }
-function newBoard(k){
- const p=kinds[k];
+function boardFields(k,where=''){
  const f=[input(k==='borrow'?'Gear board name':k==='rain'?'Event name':'Service or opening','title',{maxlength:120,...(k==='slot'?{placeholder:'e.g. Gel manicure'}:{})})];
  if(k==='borrow')f.push(input('Default loan length (days)','days',{type:'number',min:1,max:30,value:5}));
- else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Business and location':'Original location','where',{maxlength:120}));
+ else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Business and location':'Original location','where',{maxlength:120,value:where}));
  if(k==='slot')f.push(input('Service type (optional)','category',{maxlength:48,placeholder:'e.g. Hair salon, nails, barber',required:false}),input('Provider name (optional)','with',{maxlength:80,placeholder:'e.g. Maya',required:false}),input('Duration in minutes (optional)','duration',{type:'number',min:5,max:720,placeholder:'45',required:false}),input('Booking requirements (optional)','rules',{maxlength:240,placeholder:'e.g. Existing clients only',required:false}),input('Price in CAD (optional)','price',{mode:'decimal',placeholder:'55.00',required:false}));
  if(k==='rain')f.push(input('First update (optional)','note',{maxlength:240,required:false}));
+ return f;
+}
+function newBoard(k){
+ const p=kinds[k], f=boardFields(k);if(invite)f.push(inviteField());
  root.replaceChildren(heading(p,p.create,'Once published, you’ll get a public link and a private manager link.'),form('',f,async v=>{
   const r=await call('POST',null,{...v,kind:k});location.hash=boardURL(r.board.id,r.secret);
  },'Publish '+(k==='slot'?'opening':k==='rain'?'event page':'gear board')));
+}
+function newWorkspace(k){
+ const slot=k==='slot';
+ root.replaceChildren(heading(kinds[k],slot?'Start a booking page':'Start a program page',slot?'Give your business one link for openings and the waitlist.':'Give your group one link for events and plan changes.'),form('',[
+  input(slot?'Business name':'Program or group name','title',{maxlength:120}),
+  input('Short description (optional)','note',{maxlength:240,required:false}),
+  input('Default location (optional)','where',{maxlength:120,required:false,placeholder:'Business name and address, or venue'}),
+  ...(invite?[inviteField()]:[])
+ ],async v=>{const r=await call('POST',null,{kind:k+'-hub',...v});location.hash=boardURL(r.board.id,r.secret);},'Publish '+(slot?'booking page':'program page')));
+}
+function workspace(b){
+ const slot=b.kind==='slot-hub', page=el('div',undefined,'boards'), secret=organizer;
+ const mutate=async values=>{
+  const start=location.hash, r=await call('PATCH',b.id,values,secret);
+  if(start!==location.hash)return;
+  if(!r.board){location.hash='';return;}board(r.board);
+ };
+ const pub=link(boardURL(b.id));
+ if(b.owner){
+  page.append(panel('Share this page',el('p',shared?'Use the same public link every time. Keep the private manager link somewhere safe.':'Preview only. This link opens where you created it, in this browser.'),add(el('div',undefined,'actions'),a('Open public page',pub,'subtle'),copyControl('Copy public link',pub),copyControl('Copy private manager link',location.href)),qrControl(pub,b.title)));
+  const draft=el('details',undefined,'panel compose');draft.append(el('summary',slot?'Post an opening':'Add an event'),form('',boardFields(slot?'slot':'rain',b.where),v=>mutate({action:'new-listing',...v}),slot?'Publish opening':'Publish event'));
+  page.append(draft);
+ }else{
+  const bar=add(el('div',undefined,'public-bar'),el('span',slot?'BOOKING PAGE':'PROGRAM PAGE','eyebrow'),btn('Refresh',refresh,'button quiet'));
+  if(!shared){const row=readStore()[b.id];if(row)bar.append(a('Manager view',boardURL(b.id,row.owner),'subtle'));}
+  page.append(bar);
+ }
+ const list=panel(slot?'Openings':'Events');
+ if(!b.listings.length)list.append(el('p',slot?'No openings are available right now.':'No events have been posted yet.'));
+ for(const entry of b.listings){
+  const latest=entry.updates?.[0];
+  const tag=slot?{available:'Available',claimed:'Claimed',closed:'Closed',expired:'Expired'}[entry.state]:D.stages[latest.status];
+  const href=boardURL(b.id,secret,null,null,entry.id);
+  const isOver=(latest?.when||entry.when)<=now();
+  const row=add(el('article',undefined,'item'),add(el('div',undefined,'item-title'),a(entry.title,href,'item-link'),badge(tag,slot?entry.state:latest.status)),
+   el('p',date(latest?.when||entry.when)+' · '+(latest?.where||entry.where),'muted'));
+  if(slot&&(entry.category||Number.isInteger(entry.price)))row.append(el('p',[entry.category,Number.isInteger(entry.price)?cad(entry.price):null].filter(Boolean).join(' · ')));
+  if(!slot&&entry.announcement)row.append(el('p',entry.announcement.note));
+  if(!slot&&isOver)row.append(el('p','Past event','small'));
+  row.append(a(b.owner?'Manage '+(slot?'opening':'event'):slot?'View opening':'See event status',href,'subtle'));list.append(row);
+ }
+ page.append(list);
+ if(slot&&b.owner)page.append(waitlistManager(b,mutate));
+ if(slot&&!b.owner){
+  if(b.subscribed)page.append(panel('You’re on the waitlist',el('p','Save this private link if you want to opt out later. The business may contact you about matching openings.'),copyControl('Copy private opt-out link',location.href),
+   btn('Leave waitlist',async e=>{const control=e.currentTarget;control.disabled=true;try{await call('POST',b.id,{action:'unsubscribe',token:receipt},null,null,true);location.hash=boardURL(b.id);}catch(err){const alert=el('p',err.message,'notice');alert.role='alert';control.after(alert);}finally{control.disabled=false;}},'button quiet')));
+  else if(receipt)page.append(panel('This waitlist link is inactive',a('Back to the booking page',boardURL(b.id),'subtle')));
+  else page.append(form('Join the waitlist',[input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),input('Preferred service (optional)','service',{maxlength:80,placeholder:'e.g. Gel manicure',required:false}),check('I agree to be contacted by '+b.title+' about matching openings.')],async v=>{
+   const r=await call('POST',b.id,{action:'join',...v},null,null,true);location.hash=boardURL(b.id,null,null,r.receipt);
+  },'Join waitlist'));
+ }
+ if(b.owner){
+  const settings=el('details',undefined,'panel compose');settings.append(el('summary','Page settings'),form('',[input('Short description (optional)','note',{maxlength:240,required:false,value:b.note}),input('Default location (optional)','where',{maxlength:120,required:false,value:b.where})],v=>mutate({action:'update-workspace',...v}),'Save settings'),actionButton('Delete workspace','delete',mutate,{},'Delete this workspace, its listings, and any waitlist contacts?'));page.append(settings);
+ }
+ root.replaceChildren(heading(kinds[slot?'slot':'rain'],b.title,b.note|| (b.owner?'Manager workspace':'')),page);
+}
+function waitlistManager(b,edit){
+ const box=panel('Waitlist',el('p',b.contacts.length+' opted in. You choose who to contact. Field Kit does not send messages.'));
+ for(const c of b.contacts){
+  const service=c.service.toLowerCase();
+  const match=b.listings.find(e=>e.state==='available'&&(!service||(e.title+' '+(e.category||'')).toLowerCase().includes(service)));
+  const item=add(el('article',undefined,'item'),el('h3',c.name),el('p',c.email),el('p',c.service?'Prefers: '+c.service:'Open to any service','muted'));
+  if(match){
+   const subject='Opening: '+match.title;
+   const body='Hi '+c.name+', there is an opening at '+b.title+'. You can view or claim it here: '+link(boardURL(b.id,null,null,null,match.id))+'\n\nIf you no longer want booking updates, reply and ask us to remove you.';
+   item.append(a('Draft email about '+match.title,'mailto:'+c.email+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body),'subtle'));
+  }
+  item.append(actionButton('Remove contact','remove-contact',edit,{contact:c.id},'Remove this contact from the waitlist?'));box.append(item);
+ }
+ return box;
 }
 function heading(p,title,description){
  return add(el('section',undefined,'board-top '+p.color),a('‹ All tools','./','back'),el('p',p.name.toUpperCase()+' / '+p.tag,'eyebrow'),el('h1',title),...(description?[el('p',description,'intro')]:[]));
@@ -141,9 +218,9 @@ function viewSlot(b,page,edit){
   if(b.claim)page.append(panel('Customer claim',add(el('dl'),row('Name',b.claim.name),row('Email',b.claim.email),row('Claimed',date(b.claim.at))),actions));
   else if(actions.children.length)page.append(panel('Manage opening',actions));
  }else if(b.receipt){
-  page.append(panel('You claimed this spot',el('p','Your appointment is at '+date(b.when)+'. Payment is handled by the business.'),copyControl('Copy private confirmation',link(boardURL(b.id,null,null,receipt)))));
+  page.append(panel('You claimed this spot',el('p','Your appointment is at '+date(b.when)+'. Payment is handled by the business.'),copyControl('Copy private confirmation',link(boardURL(b.id,null,null,receipt,b.listing)))));
  }else if(b.state==='available'){
-  page.append(form('Claim this opening',[input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),check(b.rules?'I meet the booking requirements.':'I can make this appointment.')],claim,'Claim appointment'));
+  page.append(form('Claim this opening',[el('p','The business receives your name and email to manage the booking. They don’t appear on the public page.','muted'),input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),check(b.rules?'I meet the booking requirements.':'I can make this appointment.')],claim,'Claim appointment'));
  }else page.append(panel('This opening is no longer available',el('p','Check with the business for its next opening.')));
 }
 function actionButton(label,action,edit,extras={},confirmText){
@@ -178,10 +255,17 @@ function qrControl(href,title){
  });
  return d;
 }
+function downloadHistory(history){
+ const csvCell=v=>'"'+String(v).replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';
+ const rows=[['Item','Borrower','Checked out (UTC)','Due (UTC)','Returned (UTC)'],...history.map(h=>[h.item,h.name,h.borrowed,h.due,h.returned])];
+ const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+ const download=a('',''+url);download.download='borrowboard-returns.csv';download.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
 function viewBorrow(b,page,edit){
  const out=b.items.filter(i=>i.state==='out').length;
  if(b.owner){
   page.append(form('Add a loaner item',[input('Item label','title',{maxlength:120,placeholder:'e.g. Helmet #04'})],v=>edit({action:'add',...v}),'Add item'),
+   form('Add a batch',[input('One item per line','titles',{multiline:4,placeholder:'Helmet #05'})],v=>edit({action:'bulk-add',titles:v.titles.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}),'Add items'),
    form('Default loan period',[input('Days for new loans','days',{type:'number',min:1,max:30,value:b.days})],v=>edit({action:'days',...v}),'Save loan period'));
  }
  if(!b.owner&&selected){
@@ -221,6 +305,11 @@ function viewBorrow(b,page,edit){
  }
  if(entries.length)refine();
  page.append(list);
+ if(b.owner&&b.history?.length){
+  const history=el('details',undefined,'panel compose');history.append(el('summary','Return history · '+b.history.length),add(el('div',undefined,'actions'),btn('Download returns CSV',()=>downloadHistory(b.history),'button quiet'),actionButton('Clear return history','clear-history',edit,{},'Clear the saved return history?')));
+  for(const h of b.history)history.append(add(el('article',undefined,'item'),el('h3',h.item),el('p',h.name+' · Returned '+date(h.returned),'muted')));
+  page.append(history);
+ }
 }
 function viewRain(b,page,edit){
  const latest=b.updates[0];
@@ -247,40 +336,44 @@ function viewRain(b,page,edit){
  }
 }
 async function claim(values){
- const boardId=current.id, itemId=selected, start=location.hash;
- const r=await call('POST',boardId,values,null,null,true);
- if(location.hash===start)location.hash=boardURL(boardId,null,itemId,r.receipt);
+ const boardId=current.id, itemId=selected, listingId=current.listing, start=location.hash;
+ const r=await call('POST',boardId,{...values,...(listingId?{listing:listingId}:{})},null,null,true);
+ if(location.hash===start)location.hash=boardURL(boardId,null,itemId,r.receipt,listingId);
 }
 function board(b){
- current=b;const p=kinds[b.kind], page=el('div',undefined,'boards');
+ current=b;if(b.kind.endsWith('-hub')){workspace(b);return;}
+ const p=kinds[b.kind], page=el('div',undefined,'boards');
  const edit=async values=>{
   const start=location.hash;
-  const r=await call('PATCH',b.id,values,organizer);
+  const r=await call('PATCH',b.id,{...values,...(b.listing?{listing:b.listing}:{})},organizer);
   if(location.hash!==start)return;
-  if(!r.board){location.hash='';return;}board(r.board);
+  if(!r.board){location.hash='';return;}
+  if(values.action==='delete-listing'){location.hash=boardURL(b.id,organizer);return;}board(r.board);
  };
- const publicLink=link(boardURL(b.id));
+ const publicLink=link(boardURL(b.id,null,null,null,b.listing));
+ if(b.listing)page.append(add(el('div',undefined,'public-bar'),a('‹ '+b.workspace,boardURL(b.id,organizer),'back')));
  if(b.owner){
   page.append(panel('Share this board',el('p',shared?'Share the public link. Save the private manager link to make changes later.':'This is a browser preview. Other people cannot open your saved boards.'),add(el('div',undefined,'actions'),a('Open public page',publicLink,'subtle'),copyControl('Copy public link',publicLink),copyControl('Copy private manager link',location.href)),qrControl(publicLink,b.title)));
  }else{
   const identity=el('div',undefined,'public-bar');
   identity.append(el('span',b.kind==='rain'?'Check here for the latest event status.':'PUBLIC PAGE','eyebrow'),btn('Refresh',refresh,'button quiet'));
-  if(!shared){const sample=readStore()[b.id];if(sample)identity.append(a('Manager view',boardURL(b.id,sample.owner),'subtle'));}
+  if(!shared){const sample=readStore()[b.id];if(sample)identity.append(a('Manager view',boardURL(b.id,sample.owner,null,null,b.listing),'subtle'));}
   page.append(identity);
  }
  if(b.kind==='slot')viewSlot(b,page,edit);
  if(b.kind==='borrow')viewBorrow(b,page,edit);
  if(b.kind==='rain')viewRain(b,page,edit);
- if(b.owner)page.append(panel('Board settings',actionButton('Delete board','delete',edit,{},'Delete this board and its entries?')));
+ if(b.owner)page.append(panel('Board settings',b.listing?actionButton('Delete listing','delete-listing',edit,{},'Delete this listing and its entries?'):actionButton('Delete board','delete',edit,{},'Delete this board and its entries?')));
  root.replaceChildren(heading(p,b.title,b.owner?'Manager view':'Public page'),page);
 }
 async function navigate(quiet=false,passive=false){
  const request=++readSerial, qp=route();
- organizer=qp.get('manage');receipt=qp.get('receipt');selected=qp.get('item');
+ if(!passive){root.inert=true;root.setAttribute('aria-busy','true');}
+ organizer=qp.get('manage');receipt=qp.get('receipt');selected=qp.get('item');listing=qp.get('listing');
  try{
   const key=qp.get('board');
   if(key){
-   const {board:b}=await call('GET',key,null,organizer,receipt);
+   const {board:b}=await call('GET',key,null,organizer,receipt,false,listing);
    if(request===readSerial&&(!passive||b.updated!==current?.updated)){board(b);if(!quiet)window.scrollTo(0,0);}
    return;
   }
@@ -289,14 +382,16 @@ async function navigate(quiet=false,passive=false){
    const sample=Object.hasOwn(slotSamples,qp.get('sample'))?qp.get('sample'):'grooming';
    const d=demo(qp.get('demo'),sample);location.replace(boardURL(d.id,d.owner));return;
   }
+  if(['slot','rain'].includes(qp.get('workspace'))){newWorkspace(qp.get('workspace'));if(!quiet)window.scrollTo(0,0);return;}
   if(Object.hasOwn(kinds,qp.get('new')))newBoard(qp.get('new'));else home();
   if(!quiet)window.scrollTo(0,0);
  }catch(e){if(request===readSerial&&(!passive||e.status===404))root.replaceChildren(panel('Page unavailable',el('p',e.message),a('Back to Field Kit','./','button')));}
+ finally{if(request===readSerial){root.inert=false;root.removeAttribute('aria-busy');}}
 }
 (async()=>{
  document.querySelector('#mode').textContent=shared?'SHARED PILOT':'BROWSER PREVIEW';
  addEventListener('hashchange',()=>navigate());
  addEventListener('storage',e=>{if(!shared&&e.key===STORE&&current?.id&&route().has('board')&&!root.querySelector('form:focus-within'))navigate(true);});
- if(shared)setInterval(()=>{if(!document.hidden&&current?.kind==='rain'&&!current.owner&&route().get('board')===current.id)navigate(true,true);},15000);
+ if(shared)setInterval(()=>{if(!document.hidden&&['rain','rain-hub'].includes(current?.kind)&&!current.owner&&route().get('board')===current.id)navigate(true,true);},15000);
  await navigate();
 })();
