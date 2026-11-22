@@ -9,13 +9,19 @@ function line(v,label,max=120,optional=false){
 }
 function future(v,t){const n=Date.parse(v);if(typeof v!=='string'||!Number.isFinite(n)||n<=Date.parse(t))fail('Choose a time in the future.');return new Date(n).toISOString();}
 function sum(v){
+ if(v===undefined||(typeof v==='string'&&!v.trim()))return null;
  if(typeof v!=='string'||!/^\d{1,5}(?:\.\d{1,2})?$/.test(v.trim()))fail('Enter a valid price in CAD.');
  const [d,c='']=v.trim().split('.');return Number(d)*100+Number(c.padEnd(2,'0'));
+}
+function duration(v){
+ if(v===undefined||v==='')return null;
+ if(!/^\d{1,3}$/.test(String(v))||+v<5||+v>720)fail('Enter a duration from 5 to 720 minutes.');
+ return +v;
 }
 function create(p,t,id){
  if(!['slot','borrow','rain'].includes(p.kind))fail('Choose a product.');
  const b={id:id(),kind:p.kind,title:line(p.title,'a name'),created:t,updated:t};
- if(b.kind==='slot')Object.assign(b,{when:future(p.when,t),where:line(p.where,'the shop and location'),rules:line(p.rules,'who qualifies',240),price:sum(p.price),claim:null,closed:false});
+ if(b.kind==='slot')Object.assign(b,{when:future(p.when,t),where:line(p.where,'the business and location'),category:line(p.category,'a service type',48,true),with:line(p.with,'a team member or provider',80,true),duration:duration(p.duration),rules:line(p.rules,'booking requirements',240,true),price:sum(p.price),claim:null,closed:false});
  if(b.kind==='borrow')Object.assign(b,{days:loanDays(p.days),items:[]});
  if(b.kind==='rain')Object.assign(b,{when:future(p.when,t),where:line(p.where,'the original location'),updates:[{status:'on',at:t,note:line(p.note,'an update',240,true)}]});
  return b;
@@ -26,7 +32,7 @@ function item(b,id){const result=b.items.find(i=>i.id===id);if(!result)fail('Tha
 const slotState=(b,t)=>b.claim?'claimed':b.closed?'closed':b.when<=t?'expired':'available';
 function act(b,p,t,id,receipt){
  if(b.kind==='rain')fail('Only the organizer can change the update.',405);
- if(p.agree!==true)fail(b.kind==='slot'?'Confirm you meet the booking requirements.':'Confirm you have the item and agree to bring it back.');
+ if(p.agree!==true)fail(b.kind==='slot'?(b.rules?'Confirm you meet the booking requirements.':'Confirm you can make this appointment.'):'Confirm you have the item and agree to bring it back.');
  const name=line(p.name,'your name',80), token=receipt();
  if(b.kind==='slot'){
   if(slotState(b,t)!=='available')fail('This appointment is no longer available.',409);
@@ -60,6 +66,8 @@ function edit(b,p,t,id){
   fail('Choose an inventory action.');
   break;
  case 'rain': {
+  if(p.action==='announce'){b.announcement={note:line(p.note,'an announcement',240),at:t};break;}
+  if(p.action==='clear-announcement'){delete b.announcement;break;}
   if(p.action!=='update'||!Object.hasOwn(stages,p.status))fail('Choose a game status.');
   const note=line(p.note,'an update',240,!['delayed','moved'].includes(p.status));
   const where=p.status==='moved'?line(p.where,'the new location'):p.status==='delayed'?(b.updates[0].where||''):'';
@@ -73,11 +81,11 @@ function edit(b,p,t,id){
 function view(b,t,owner=false,token){
  const {id,kind,title,updated}=b, v={id,kind,title,updated,owner};
  if(kind==='slot'){
-  const {when,where,rules,price,claim}=b;
-  return {...v,when,where,rules,price,state:slotState(b,t),...(owner&&claim?{claim:{name:claim.name,email:claim.email,at:claim.at}}:{}),...(token&&claim?.token===token?{receipt:{at:claim.at}}:{})};
+  const {when,where,rules,price,category,with:provider,duration,claim}=b;
+  return {...v,when,where,rules,price,category,with:provider,duration,state:slotState(b,t),...(owner&&claim?{claim:{name:claim.name,email:claim.email,at:claim.at}}:{}),...(token&&claim?.token===token?{receipt:{at:claim.at}}:{})};
  }
  if(kind==='borrow')return {...v,days:b.days,items:b.items.map(({id,title,loan})=>({id,title,state:loan?'out':'in',...(loan?{due:loan.due,...(owner?{name:loan.name,at:loan.at}:{}),...(token&&loan.token===token?{receipt:true}:{})}:{})}))};
- return {...v,when:b.when,where:b.where,updates:b.updates};
+ return {...v,when:b.when,where:b.where,updates:b.updates,...(b.announcement?{announcement:b.announcement}:{})};
 }
 const api={create,act,edit,view,stages,fail};
 if(typeof module==='object')module.exports=api;else root.PilotDomain=api;
