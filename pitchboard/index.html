@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f3e9"><title>The Pitch List | Open Tools Studio</title><link rel="stylesheet" href="style.css"><script defer src="ideas.js"></script><script defer src="board.js"></script></head>
+<body><div class="frame">
+<header class="top"><a href="./" class="brand"><span aria-hidden="true">✳</span> The Pitch List</a><a class="launch" href="../launchpad/v2/">See what we’ve built <span aria-hidden="true">↗</span></a></header>
+<main><section class="hero" aria-labelledby="title"><div>
+<p class="eyebrow">Open Tools Studio / idea book</p><h1 id="title">What should we build next?</h1><p>Find a small problem worth solving. Every pitch has a likely buyer and one real-world test you can run before building.</p>
+<div class="actions"><button id="top-picks" type="button" class="button">Show the quick-start picks <span aria-hidden="true">↓</span></button><button id="hero-saved" type="button" class="button quiet">View my shortlist</button></div></div>
+<div class="folio" aria-hidden="true"><span>FIELD NOTES</span><strong id="folio-total">70</strong><span id="folio-lanes">9 BUSINESS LANES</span><div class="lines"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></section>
+<section class="work" aria-labelledby="work-title">
+<div class="section-head"><div><p class="eyebrow">Pitches to try</p><h2 id="work-title" tabindex="-1">The list</h2></div><span id="summary" role="status" aria-live="polite"></span></div>
+<div class="filters" aria-label="Filter ideas">
+<label for="query">Search pitches<input type="search" id="query" placeholder="e.g. groomers, gear, pickup" autocomplete="off"></label>
+<label for="lane">Business lane<select id="lane"><option value="">All lanes</option></select></label>
+<label for="model">How it could earn<select id="model"><option value="">Any model</option></select></label>
+</div>
+<div class="switches" aria-label="Choose a list">
+<button type="button" id="view-all" aria-pressed="true">All ideas</button><button type="button" id="view-picks" aria-pressed="false">Quick-start picks</button><button type="button" id="view-latest" aria-pressed="false">Latest additions</button><button type="button" id="view-saved" aria-pressed="false">My shortlist <b id="saved-count">0</b></button><button class="linklike" type="button" id="reset">Reset filters</button>
+</div>
+<div class="short-tools" id="short-tools" hidden><p>Saved in this browser. Copy your picks to share them.</p><button type="button" id="copy-saved">Copy shortlist</button><p id="copy-status" role="status"></p><textarea id="copy-fallback" readonly hidden aria-label="Shortlist text to copy"></textarea></div>
+<ol id="pitch-list" class="pitch-list"></ol>
+<div id="empty" class="empty" hidden></div>
+<noscript>Enable JavaScript to browse and save pitches.</noscript>
+</section></main>
+<footer><a href="./">The Pitch List</a><span>These are pitches to test, not evidence of demand.</span></footer>
+</div></body></html>
