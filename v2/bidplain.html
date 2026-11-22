@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BidPlain · Compare renovation quotes</title>
+<style>
+:root{color-scheme:light;--ink:#17302b;--bg:#f5f3ec;--paper:#fffdf7;--line:#d7ddd2;--green:#22654e;--pale:#e6efe6;--muted:#4b625a;--clay:#93452c}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:28px 24px 56px}.brand{display:flex;gap:9px;align-items:center;font-weight:800;letter-spacing:.04em}.logo{background:var(--green);color:white;border-radius:9px;padding:3px 8px}.eyebrow{color:var(--green);font-size:.77rem;text-transform:uppercase;font-weight:850;letter-spacing:.12em}header{padding:40px 0 22px}h1,h2,h3,p{margin:0 0 10px}h1{max-width:16ch;font:700 clamp(2.35rem,7vw,4.55rem)/1.02 Georgia,serif;letter-spacing:-.045em}h2{font:700 clamp(1.5rem,4vw,2.2rem)/1.11 Georgia,serif}h3{font-size:1rem}.sub{max-width:57ch;color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap;padding-top:8px}button{cursor:pointer;border:1px solid var(--green);border-radius:8px;padding:9px 12px;font:700 .92rem system-ui;color:white;background:var(--green)}button.secondary{background:var(--paper);color:var(--green)}input,select{max-width:100%;min-width:0;width:100%;border:1px solid #9faea3;border-radius:6px;background:white;color:var(--ink);font:inherit;padding:8px}input[type=checkbox]{width:auto}label{display:block;font-weight:650;font-size:.85rem}.hint{color:var(--muted);font-size:.87rem}.box{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:18px;margin:14px 0}.form-grid,.result-grid,.scope-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.base{padding:12px;border-radius:10px;background:#eef2eb}.base input+label{margin-top:6px}.row{border-top:1px solid var(--line);padding:10px 0}.row-title{font-weight:800;display:block;margin-bottom:5px}.extra-price{margin-top:6px}.result{background:var(--pale)}.total{font-size:1.55rem;font-weight:850}.flag{color:var(--clay);font-weight:750}ul{padding-left:20px;margin:4px 0 0}li+li{margin-top:5px}.questions li{margin-bottom:6px}.result-card{min-width:0;overflow-wrap:anywhere;padding:10px;border-radius:8px;background:var(--paper)}.badge{font-size:.74rem;background:var(--pale);border-radius:99px;padding:3px 8px;font-weight:800}footer{color:var(--muted);font-size:.83rem}summary{cursor:pointer;font-weight:750}@media(max-width:560px){main{padding:19px 14px 36px}.box{padding:12px}header{padding-top:25px}.form-grid,.scope-grid,.result-grid{gap:7px}select,input{padding:7px 4px;font-size:16px}.base{padding:8px}}@media print{body{background:#fff}header,.editor,.actions,footer,.brand .badge{display:none}main{padding:0}.box,.result-card{background:#fff}#report{border:0}}
+
+:root{--ink:#121b25;--bg:#f6f7f4;--paper:#fff;--green:#224d3d;--pale:#e8f1e9;--muted:#495867;--line:#d9e1de}
+h1,h2{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:-.06em}header{background:#111827;color:#f4fbf7;border-radius:21px;padding:clamp(22px,5vw,49px);margin:14px 0}.eyebrow{letter-spacing:.105em}header .eyebrow{color:#dbfda7}header .sub{color:#cbd5e1}header #demo{background:#dbfda7;color:#16251e;border-color:#b8de87}.brand a{margin-left:auto;color:#224d3d;font-size:.83rem}.summary-rows{margin:8px 0;display:grid;gap:4px}.summary-rows>div{border-top:1px solid #cbd9cc;padding:6px 0;overflow-wrap:anywhere}.report-status{font-size:.85rem;color:#224d3d}button:disabled{opacity:.5;cursor:default}.box{box-shadow:0 8px 24px #14242108}@media print{.brand a,.report-status{display:none}}
+</style></head>
+<body><main>
+<div class="brand"><span class="logo" aria-hidden="true">B</span> BidPlain <span class="badge">CAD</span><a href="index.html#bid">Back to lab</a></div>
+<header><p class="eyebrow">Renovation quote comparison</p><h1>What’s missing from the cheaper quote?</h1><p class="sub">Compare two estimates line by line. See which costs you can count today and what to ask each contractor before you pay a deposit.</p><div class="actions"><button type="button" id="demo">Try a kitchen example</button><button type="button" id="clear" class="secondary">Start with blank quotes</button></div></header>
+<section class="box result" id="report" aria-labelledby="result-title"><p class="eyebrow">Side by side</p><h2 id="result-title">What we can price today</h2><p class="hint">Known costs include the base quote and any extras you priced. They are not final project totals.</p><div class="result-grid" id="results" aria-live="polite"></div><div class="questions" id="questions"></div><div class="actions"><button type="button" id="copy" class="secondary" disabled>Copy report</button><button type="button" id="save" class="secondary" disabled>Download text</button><button type="button" id="print" class="secondary" disabled>Print or save report as PDF</button></div><p id="report-status" class="report-status" role="status"></p></section>
+<section class="box editor" aria-labelledby="editor-title"><h2 id="editor-title">Your two quotes</h2><p class="hint">Use the same tax basis for both quotes and extras. Enter numbers in Canadian dollars, without commas.</p>
+<div class="form-grid" id="basics"></div><div id="scope"></div><div class="actions"><button type="button" id="add" class="secondary">Add a scope item</button></div></section>
+<footer>Your entries stay in this browser tab and clear when you close or reload it. This report compares what’s written in your quotes; it doesn’t assess contractor quality.</footer>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'});
+const statuses=[['unknown','Not stated'],['included','Included'],['extra','Extra with price'],['excluded','Excluded']];
+const initial=['Demolition and disposal','Cabinets and installation','Electrical work','Plumbing changes','Permits and inspections'];
+const blank=()=>({names:['Quote A','Quote B'],bases:['',''],scope:initial.map(name=>({name,states:['unknown','unknown'],amounts:['','']}))});
+let state=blank(), output='';
+function scopeText(row,i){
+ const status=row.states[i];
+ if(status==='extra'){
+  const amount=money(row.amounts[i]);
+  return amount===null?'Extra, price missing':'Extra '+cad(amount);
+ }
+ return statuses.find(([id])=>id===status)?.[1]||'Not stated';
+}
+const money=value=>{
+ const raw=String(value??'').trim();
+ if(!/^\d{1,8}(\.\d{1,2})?$/.test(raw))return null;
+ const [whole,cents='']=raw.split('.');
+ return Number(whole)*100+Number(cents.padEnd(2,'0'));
+};
+const cad=n=>fmt.format(n/100);
+const node=(tag,text,cls)=>{
+ const el=document.createElement(tag);
+ if(text!=null)el.textContent=text;
+ if(cls)el.className=cls;
+ return el;
+};
+function input(label,value,change,decimal=false){
+ const wrap=node('label',label);
+ const field=node('input');field.value=value??'';field.type='text';
+ if(decimal){field.inputMode='decimal';field.placeholder='0.00';field.maxLength=11;}else{field.maxLength=80;}
+ field.addEventListener('input',()=>{change(field.value);report()});wrap.append(field);return wrap;
+}
+function editors(){
+ $('#basics').replaceChildren(...state.names.map((name,i)=>{
+  const pane=node('div',null,'base');
+  pane.append(input('Name '+(i===0?'A':'B'),name,v=>{state.names[i]=v}),input('Base price '+(i===0?'A':'B'),state.bases[i],v=>{state.bases[i]=v},true));
+  return pane;
+ }));
+ $('#scope').replaceChildren(...state.scope.map((row,i)=>{
+  const el=node('div',null,'row');const name=input('Scope item '+(i+1),row.name,v=>{row.name=v});name.className='row-title';el.append(name);
+  const grid=node('div',null,'scope-grid');
+  row.states.forEach((value,j)=>{
+   const cell=node('div');const label=node('label',j===0?'In Quote A':'In Quote B');
+   const select=node('select');select.setAttribute('aria-label','Quote '+(j===0?'A':'B')+' status for scope item '+(i+1));
+   for(const [key,caption] of statuses){const option=node('option',caption);option.value=key;select.append(option);}
+   select.value=value;label.append(select);
+   const extra=input('Extra price',row.amounts[j],v=>{row.amounts[j]=v},true);extra.className='extra-price';extra.hidden=value!=='extra';
+   select.addEventListener('change',()=>{row.states[j]=select.value;extra.hidden=select.value!=='extra';report()});
+   cell.append(label,extra);grid.append(cell);
+  });
+  el.append(grid);return el;
+ }));
+}
+function summarize(i){
+ const base=money(state.bases[i]);let known=base??0;
+ const flags=[];
+ for(const [idx,row] of state.scope.entries()){
+  const label=row.name.trim()||'Scope item '+(idx+1);
+  const status=row.states[i];
+  if(status==='unknown')flags.push({label,question:'Is '+label+' included? Please specify the price if it is not.'});
+  if(status==='excluded')flags.push({label,question:'What should I budget separately for '+label+'?'});
+  if(status==='extra'){
+   const extra=money(row.amounts[i]);
+   if(extra===null)flags.push({label,question:'What is the price for '+label+'?'});
+   else known+=extra;
+  }
+ }
+ return {base,known,flags};
+}
+function report(){
+ const views=[summarize(0),summarize(1)];
+ const names=state.names.map((name,i)=>name.trim()||'Quote '+(i===0?'A':'B'));
+ const cards=views.map((view,i)=>{
+  const c=node('div',null,'result-card');
+  c.append(node('h3',names[i]),node('div',view.base===null?'Add base price':cad(view.known),'total'),node('div',view.flags.length+' scope item'+(view.flags.length===1?'':'s')+' to clarify',view.flags.length?'flag':'hint'));
+  return c;
+ });
+ $('#results').replaceChildren(...cards);
+ const aside=$('#questions');aside.replaceChildren();
+ const ready=views.every(v=>v.base!==null);
+ ['#copy','#save','#print'].forEach(s=>{$(s).disabled=!ready;});
+ $('#report-status').textContent='';
+ output='';
+ if(ready){
+  const delta=Math.abs(views[0].known-views[1].known);
+  const difference=delta?'Known cost difference: '+cad(delta)+'.':'The known costs are the same.';
+  aside.append(node('p',difference,'hint'));
+  const detail=node('details');detail.append(node('summary','See every scope item'));
+  const rows=node('div',null,'summary-rows');const lines=[];
+  state.scope.forEach((row,i)=>{
+   const title=row.name.trim()||'Scope item '+(i+1);
+   const line=title+': '+names[0]+' — '+scopeText(row,0)+'; '+names[1]+' — '+scopeText(row,1);
+   lines.push(line);rows.append(node('div',line));
+  });
+  detail.append(rows);aside.append(detail);
+  output=['BIDPLAIN · QUOTE COMPARISON',...names.map((name,i)=>name+': '+cad(views[i].known)+' in known costs'),difference,'Known costs may not be the final price.','',...lines,'','QUESTIONS',...views.flatMap((view,i)=>view.flags.map(flag=>names[i]+': '+flag.question))].join('\n');
+ }
+ const list=node('ul');
+ views.forEach((view,i)=>{
+  view.flags.forEach(flag=>list.append(node('li',names[i]+': '+flag.question)));
+ });
+ if(list.children.length){
+  const details=node('details');details.append(node('summary','Questions to send your contractors'),list);aside.append(details);
+ }
+}
+function redraw(){editors();report();}
+$('#clear').addEventListener('click',()=>{state=blank();redraw();$('#basics').querySelector('input').focus();});
+$('#demo').addEventListener('click',()=>{
+ state={names:['Quote A','Quote B'],bases:['18500','20100'],scope:[
+  {name:'Demolition and disposal',states:['extra','included'],amounts:['1400','']},
+  {name:'Cabinets and installation',states:['included','included'],amounts:['','']},
+  {name:'Electrical work',states:['unknown','included'],amounts:['','']},
+  {name:'Plumbing changes',states:['extra','included'],amounts:['900','']},
+  {name:'Permits and inspections',states:['excluded','unknown'],amounts:['','']},
+ ]};redraw();
+});
+$('#add').addEventListener('click',()=>{
+ if(state.scope.length>=30)return;
+ state.scope.push({name:'',states:['unknown','unknown'],amounts:['','']});redraw();$('#scope .row:last-child input').focus();
+});
+$('#copy').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText(output);$('#report-status').textContent='Report copied.';}
+ catch{$('#report-status').textContent='Copy is unavailable in this browser. Use Download text instead.';}
+});
+$('#save').addEventListener('click',()=>{
+ const u=URL.createObjectURL(new Blob([output+'\n'],{type:'text/plain;charset=utf-8'}));
+ const a=node('a');a.href=u;a.download='bidplain-comparison.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
+});
+$('#print').addEventListener('click',()=>{
+ const sections=[...document.querySelectorAll('#questions details')];
+ const states=sections.map(d=>d.open);sections.forEach(d=>{d.open=true;});
+ window.addEventListener('afterprint',()=>sections.forEach((d,i)=>{d.open=states[i];}),{once:true});
+ window.print();
+});
+redraw();
+</script></body></html>
