@@ -84,3 +84,15 @@ dl{margin:8px 0 0}
 @media(max-width:780px){.cards{grid-template-columns:1fr}.product-top{min-height:50px}.hero{min-height:260px}.hero h1{margin:11px 0}.hero-mark{min-width:16%}.hero-mark div{display:none}}
 @media(max-width:580px){.boards{grid-template-columns:1fr}.hero{gap:10px}.hero-mark span{font-size:clamp(41px,13vw,85px)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+.product .product-top{min-height:0;background:none;margin-bottom:8px;padding:0;align-items:center;color:var(--muted)}
+.product .product-top i{font-size:20px;color:var(--ink)}
+.product-art{display:block;width:100%;height:auto;aspect-ratio:480/256;border-radius:13px;margin:0 0 16px}
+.vision{margin-top:14px;border-top:1px solid var(--line);padding-top:8px;color:var(--muted);font-size:.88rem}
+.vision summary{cursor:pointer;font-weight:720;padding:8px 0;color:var(--ink)}
+.vision p{line-height:1.45;margin:0 0 6px}
+.sample-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.inventory-control{margin:12px 0 8px}
+.inventory-control .input{max-width:18rem}
+@media(max-width:580px){.sample-grid{grid-template-columns:1fr}}
+.inventory-control{display:flex;flex-wrap:wrap;gap:8px}
+.inventory-control .input{flex:1 1 140px}
