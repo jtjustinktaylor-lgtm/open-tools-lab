@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Open Tools Lab</title><link rel="stylesheet" href="style.css"><script src="app.js" defer></script></head>
+<body><main>
+<header><p class="brand"><span aria-hidden="true">◈</span> Open Tools Lab <small>Preview</small></p>
+<h1>Try four tools. See what each one does.</h1><p class="intro">No account required. Use sample data or try your own details where supported. Nothing you type is sent to a server.</p></header>
+<nav aria-label="Product demos"><a href="#scope">ScopeNote <small>Request approval</small></a><a href="#upstream">Upstream Ledger <small>Read a verified brief</small></a><a href="#trade">TradeStack <small>Try a real sample</small></a><a href="#meter">MeterCheck <small>Run a paid API simulation</small></a></nav>
+<section id="scope" aria-labelledby="scope-title"><p class="kicker">For crews and customers</p><h2 id="scope-title">ScopeNote</h2><p>Write down the extra work, its price, and when it can happen. Share the same note with the person approving it.</p><div class="columns">
+<form id="scope-form">
+<label>Job<input name="job" maxlength="80" required value="Kitchen renovation"></label>
+<label>Extra work<textarea name="description" maxlength="450" required>Move the sink supply and drain to the island.</textarea></label>
+<div class="pair"><label>Price (CAD)<input name="price" inputmode="decimal" maxlength="11" value="875.00" required></label><label>Tax basis<select name="tax"><option value="before tax">Before tax</option><option value="tax included">Tax included</option></select></label></div>
+<label>Schedule impact<input name="schedule" maxlength="120" required value="Adds one working day after written approval."></label>
+<button type="submit">Create approval request</button>
+</form>
+<div class="output"><h3>Ready to send</h3><pre id="scope-output" tabindex="-1"></pre><div class="actions"><button class="secondary" id="scope-copy" type="button">Copy note</button><button class="secondary" id="scope-save" type="button">Download note</button></div><p id="scope-message" role="status"></p></div>
+</div></section>
+<section id="upstream" aria-labelledby="upstream-title"><p class="kicker">For software teams</p><h2 id="upstream-title">Upstream Ledger</h2><p class="meta">Paxeer / Sidiora sample · Nov. 22, 2026 UTC</p>
+<div class="output"><h3>Launchpad change reached the repo</h3><p>The commit changed a frontend CI test to require a separate lint script when lint is skipped during the build. It does not show a change to the running Launchpad.</p>
+<p><strong>Public reads:</strong> Two endpoints replied on chain 125 at blocks 47,542,155 and 47,542,154 when checked. A one-time check does not establish uptime or live payment support.</p>
+<p><strong>What to do:</strong> If your build relies on the Launchpad, check the published release or deployment evidence before changing production settings.</p>
+<p><a href="https://github.com/Sidiora-Labs/paxeer-monorepo/commit/76286a9ccfd3c4659d9cf3740b4d0b82d0d9e724">Source commit</a> · <a href="https://www.paxeer.network/faq">Network FAQ</a></p></div>
+</section>
+<section id="trade" aria-labelledby="trade-title"><p class="kicker">For developers who prefer to run it themselves</p><h2 id="trade-title">TradeStack Release Watch</h2><p>The kit sorts published releases, prereleases and commits into a review queue. Here’s the output from a real week of GitHub data.</p>
+<div class="output"><h3>Sample watchlist: Node.js</h3><pre id="trade-excerpt"></pre><p><a href="tradestack-sample.md" download>Download the full sample report</a></p></div>
+<p class="meta">The $19 CAD kit would include the generator, starter schedule and briefing template. Checkout is not connected in this preview.</p>
+</section>
+<section id="meter" aria-labelledby="meter-title"><p class="kicker">For developers testing paid APIs</p><h2 id="meter-title">MeterCheck</h2><p>Try four simulated payment states and see whether the example API should unlock the response or ask the customer to act.</p>
+<div class="pair"><div><label>Simulated payment<select id="meter-scenario"><option value="valid">Correct payment confirmed</option><option value="pending">Still waiting for confirmation</option><option value="mismatch">Wrong amount</option><option value="unavailable">Receipt service unavailable</option></select></label><button id="meter-run" type="button">Test scenario</button></div>
+<div class="output"><p class="meta">Expected payment: 0.05 demo units</p><h3 id="meter-result"></h3><p id="meter-detail" role="status"></p></div></div>
+<p class="meta">Simulation only. No wallet, receipts service, or live endpoint is contacted.</p>
+</section>
+<footer>Looking for the homeowner tool? <a href="bidplain.html">Try BidPlain’s kitchen quote comparison</a>. These are free demos. Checkout is not enabled.</footer></main></body></html>
